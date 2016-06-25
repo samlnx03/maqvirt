@@ -1,5 +1,12 @@
 #!/bin/bash
 # clonar-hdd.sh   clona un disco duro
+#
+# esto puede tardar demasiado dependiendo del tamaño del disco
+# dejarlo en el background informando el ps-id y checar desde el cliente web periodicamente
+#
+# my-app &
+# echo $!
+#
 NAME=$1
 NEW=$2
 if [ -z "$NAME" ]; then
@@ -18,7 +25,10 @@ if [ -z "$SIZE" ]; then
 	exit
 fi
 S=$(lvcreate -L $SIZE -n $NEW fie_vg)
-S1=$(dd if=/dev/fie_vg/$NAME  of=/dev/fie_vg/$NEW bs=64M)
+#S1=$(dd if=/dev/fie_vg/$NAME  of=/dev/fie_vg/$NEW bs=64M)
+dd if=/dev/fie_vg/$NAME  of=/dev/fie_vg/$NEW bs=64M &> /tmp/kk.txt &
+DDPID=$!
 echo "$S"
-echo "$S1"
+echo "clonando..."
+echo "$DDPID"
 
