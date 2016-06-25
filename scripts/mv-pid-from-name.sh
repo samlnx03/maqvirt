@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
 else
 	PS=$(ps ax | grep qemu-system-x86_64 | grep "$NAME " | awk '{print $1}')
 	if [ -z "$PS" ]; then
-		PS="-1"
+		PS="-1 No se encontro $NAME"
 	fi
 fi
 echo $PS
