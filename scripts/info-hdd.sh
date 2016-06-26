@@ -1,5 +1,5 @@
 #!/bin/bash
-# existe-hdd.sh   verifica que exista un volumen logico
+# info-hdd.sh   verifica que exista un volumen logico
 NAME=$1
 if [ -z "$NAME" ]; then
 	echo "-1 no se paso argumento 1 nombre de disco"

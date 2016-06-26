@@ -1,7 +1,8 @@
 #!/usr/bin/php
 <?php
 define("DEBUG", 1); // 0=nothing 1=minimum 2=all
-//define("LOGFILE", /home/sperez/virtInterface/log/phpserver.log);
+
+const DIR="/home/sperez/maqvirt/scripts";
 
 class MySocketServer
 {
@@ -9,7 +10,7 @@ class MySocketServer
     protected $clients = [];
     protected $changed;
    
-    function __construct($host = 'localhost', $port = 5999)
+    function __construct($host, $port)
     {
         set_time_limit(0);
         $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -145,71 +146,120 @@ class MySocketServer
             return;	// solo espacios
         }
 	$datos=explode("+", $msg);
-	// luego datos$[0] sera la autenticacion
+	foreach($datos as $elemento){
+		list($name, $val)=explode(":",$elemento);
+		$info[$name]=$val;
+	}
 
-	$cmd=$datos[0];
+	$cmd=$info["cmd"];
 	switch($cmd) {
 		case "disconnect":
             		socket_close($socket);
 			$this->log("$sock se desconecto amablemente");
 			break;
-		case "listaIsos":
-			$talkback=shell_exec("/home/sperez/pamvifie/lista-isos.sh");
+		case "listaIsos": // checado!
+			$talkback=shell_exec(DIR."/lista-isos.sh");
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo "$talkback\n";
 			break;
-		case "infoHdd":
-			list($name, $nameval)=explode(":",$datos[1]);
-			//echo "datos1: ".$datos[1]." $name: $val\n";
-			$talkback=shell_exec("/home/sperez/pamvifie/info-hdd.sh $nameval");
+		case "infoHdd":	// checado!
+			$talkback=shell_exec(DIR."/info-hdd.sh ".$info["name"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo "$talkback\n";
 			break;
-		case "createVM":
-			$talkback=$this->createVM($datos);
-	                //$talkback=substr($talkback,0,-1); // quitar el cr
+		case "crearHdd":  // checado!
+			$talkback=shell_exec(DIR."/crear-hdd.sh ".$info["name"]." ".$info["size"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "borrarHdd":	// checado!
+			$talkback=shell_exec(DIR."/borrar-hdd.sh ".$info["name"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "clonarHdd":
+			$talkback=shell_exec(DIR."/clonar-hdd.sh ".
+				$info["name"]." ". $info["new"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+
+		case "createVM":  // verificar creacion del script
+			$talkback=$this->createVM($info);
+	    		$this->log($talkback);
+	                $talkback="script creado";
         	        socket_write($socket, $talkback, strlen($talkback));
 			//echo "$talkback\n";
 			break;
 	}
     }
-    function createVM($datos)
+    function createVM($info)
     {
-	//echo "datos: ".print_r($datos);
-	for($i=1; $i<sizeof($datos);$i++){
-		list($name, $val)=explode(":",$datos[$i]);
-		$pares[$name]=$val;
+	$vncport=50+$info['vnc'];
+	$mac=$vncport;
+	$add=3; // adress pci
+
+	$crearnics="";
+	for($i=1; $i<=$info["nic"]; $i++){
+		$j=$i-1;
+		$intf="mv".$info["vnc"]."eth".$j;
+		$crearnics=$crearnics.
+			"ip tuntap add mode tap $intf\n".
+			"iplink set $intf up\n".
+			"ovs-vsctl add-port $BRIDGE $intf tag=1\n\n";
 	}
-	$vncport=5950+$pares['vnc'];
-	$mac=50+$pares["vnc"];
-	$vm="qemu-system-x86_64 \\\n".
+
+
+	$vm=$crearnics."\n\n".
+		"qemu-system-x86_64 \\\n".
 		"-enable-kvm \\\n".
-		"-m {$pares['mem']} \\\n".
+		"-m {$info['mem']} \\\n".
 		"-k es \\\n".
-		"-name {$pares['name']} \\\n".
+		"-name {$info['name']} \\\n".
 		"-M pc-1.0 \\\n".
-		"-smp 1,sockets=1,cores=1,threads=1 \\\n".
-		"-cdrom /var/lib/libvirt/images/{$pares['cdrom']} \\\n".
-		"-drive file=/dev/fie_vg/{$pares['hd0']},if=none,id=drive-virtio-disk0,format=raw \\\n".
-		"-device virtio-blk-pci,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,id=virtio-disk0 \\\n".
-		"-vnc 127.0.0.1:$vncport \\\n".
-		"-netdev tap,ifname=proxy148,script=no,downscript=no,id=hostnet0 \\\n".
-		"-device virtio-net-pci,netdev=hostnet0,mac=52:54:00:43:6d:$mac,bus=pci.0,addr=0x3 \\\n".
+		"-smp 1,sockets=1,cores=1,threads=1 \\\n";
+	if(isset($info['cdrom'])){
+		$vm=$vm.
+		"-cdrom /var/lib/libvirt/images/{$info['cdrom']} \\\n";
+	}
+	if(isset($info['hd0'])){
+		$vm=$vm.
+		"-drive file=/dev/fie_vg/{$info['hd0']},if=none,id=drive-virtio-disk0,format=raw \\\n".
+		"-device virtio-blk-pci,bus=pci.0,addr=0x$add,drive=drive-virtio-disk0,id=virtio-disk0 \\\n";
+		$add++;
+	}
+	$vm=$vm."-vnc 127.0.0.1:$vncport \\\n";
+//$vmm->write("cmd:createVM+$name:$nameval+$nic:$numnics+$mem:$memSize+$cdrom:$cdromdata+$hd0:$h	
+	if(isset($info['nic'])){
+		for($i=1; $i<=$info["nic"]; $i++){
+			$intf="mv".$info["vnc"]."eth".$i;
+			$maci="52:54:00:43:".dechex($i).":".dechex($mac);
+			$vm=$vm.
+		"-netdev tap,ifname=$intf,script=no,downscript=no,id=hostnet$i \\\n".
+		"-device virtio-net-pci,netdev=hostnet$i,mac=$maci,bus=pci.0,addr=0x$add \\\n";
+		$add++;
+		}
+	}
+	$vm=$vm.
 		"-rtc base=utc \\\n".
-		"-netdev tap,ifname=proxy192,script=no,downscript=no,id=hostnet1 \\\n".
-		"-device virtio-net-pci,netdev=hostnet1,mac=52:54:00:43:6f:$mac,bus=pci.0,addr=0x6 \\\n".
 		"-usb \\\n".
 		"-vga cirrus \\\n".
-		"-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x5 \\\n".
+		"-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x$add \\\n";
+	$add++;
+	$vm=$vm.
 		"-nodefconfig \\\n".
 		"-nodefaults \\\n".
 		"-boot order=c,menu=on";
 		return $vm;
     }
 }
-
-(new MySocketServer())->run();
+require("/home/sperez/maqvirt.secret");
+// define los parametros del constructor
+(new MySocketServer(IP, PORT))->run();
 ?>
 

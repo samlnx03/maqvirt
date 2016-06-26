@@ -24,6 +24,13 @@ if [ -z "$SIZE" ]; then
 	echo "-1 no se encontro el disco $NAME, exiting"
 	exit
 fi
+INFO=$(lvs fie_vg/$NEW | tail -n+2 | awk '{print $4,$3}')
+if [ -n "$INFO" ]; then
+        echo "-1 ya existe el disco o volumen logico $NEW, exiting"
+        exit
+fi
+
+
 S=$(lvcreate -L $SIZE -n $NEW fie_vg)
 #S1=$(dd if=/dev/fie_vg/$NAME  of=/dev/fie_vg/$NEW bs=64M)
 dd if=/dev/fie_vg/$NAME  of=/dev/fie_vg/$NEW bs=64M &> /tmp/kk.txt &
