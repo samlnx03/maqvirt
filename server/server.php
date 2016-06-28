@@ -211,6 +211,10 @@ class MySocketServer
 			"ip tuntap add mode tap $intf\n".
 			"iplink set $intf up\n".
 			"ovs-vsctl add-port $BRIDGE $intf tag=1\n\n";
+		$quitarnics=$quitarnics.
+			"ovsctl del-port brNETLAB $intf\n".
+			"ip link set $intf down\n".
+			"ip tuntap del mode tap $intf\n\n";
 	}
 
 
@@ -253,7 +257,11 @@ class MySocketServer
 	$vm=$vm.
 		"-nodefconfig \\\n".
 		"-nodefaults \\\n".
-		"-boot order=c,menu=on\n\n";
+		"-boot order=c,menu=on\n\n".
+
+		"# eliminacion de la interfaz de red\n".
+		$quitarnics;
+
 
 		$BASHSCRIPT="/home/sperez/maqvirt/machines/".$info["name"].".sh";
 		$F=fopen($BASHSCRIPT, 'x');
