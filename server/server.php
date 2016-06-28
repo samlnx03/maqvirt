@@ -190,9 +190,8 @@ class MySocketServer
 			break;
 
 		case "createVM":  // verificar creacion del script
-			$talkback=$this->createVM($info);
+			$talkback=$this->createVM($info)." creada";
 	    		$this->log($talkback);
-	                $talkback="script creado";
         	        socket_write($socket, $talkback, strlen($talkback));
 			//echo "$talkback\n";
 			break;
@@ -254,8 +253,18 @@ class MySocketServer
 	$vm=$vm.
 		"-nodefconfig \\\n".
 		"-nodefaults \\\n".
-		"-boot order=c,menu=on";
-		return $vm;
+		"-boot order=c,menu=on\n\n";
+
+		$BASHSCRIPT="/home/sperez/maqvirt/machines/".$info["name"].".sh";
+		$F=fopen($BASHSCRIPT, 'x');
+		if($F)
+			fwrite($F, $vm);
+		else {
+			$BASHSCRIPT="Error al crear script de maq. virtual ".$info["name"].".sh";
+			$this->log($BASHSCRIPT);
+		}
+		fclose($F);
+		return $BASHSCRIPT;
     }
 }
 require("/home/sperez/maqvirt.secret");
