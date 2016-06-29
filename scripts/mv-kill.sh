@@ -13,6 +13,12 @@ if [ -z "$NAME" ]; then
 	exit
 fi
 
+NUM=$(/home/sperez/maqvirt/scripts/is-mv-inListaNegra.sh $NAME)
+if [[ "$NUM" == [1-9]* ]]; then
+	echo "-1 Esta en la lista negra"
+	exit
+fi
+
 PS=$(ps ax | grep qemu-system-x86_64 | grep "$NAME " | awk '{print $1}')
 if [ -z "$PS" ]; then
 	echo "-1 NO esta corriendo"
@@ -21,7 +27,8 @@ fi
 TFILE="$(mktemp)"
 	
 kill -s $SIGNAL $PS 2>$TFILE
-wait $PS
+#wait $PS  #wait: pid 17655 is not a child of this shell
+# verificar con isRunning
 
 cat $TFILE
 rm $TFILE

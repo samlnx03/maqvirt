@@ -318,7 +318,7 @@ class MySocketServer
 		case "vmStart": // 
 			$mv=DIRMV."/{$info['name']}.sh"; 
 			exec(DIRBS."/mv-start.sh $mv"); // daemonize vm
-			$talkback="se intento dejar la MV en el background. Cheque con isRunning\n";
+			$talkback="se intento dejar la MV en el background. Cheque con isRunning en 1 segundo aprox\n";
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo $talkback;
 			break;
