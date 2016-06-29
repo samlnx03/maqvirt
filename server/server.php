@@ -2,7 +2,7 @@
 <?php
 define("DEBUG", 1); // 0=nothing 1=minimum 2=all
 
-const DIR="/home/sperez/maqvirt/scripts";
+require("/home/sperez/maqvirt.secret");
 
 class MySocketServer
 {
@@ -140,67 +140,11 @@ class MySocketServer
         echo $dt->format("Y-m-d H:i")." $msg\n";
     }
 
-    function processMessage($socket, $msg)
-    {
-        if (!$msg = trim($msg)) {
-            return;	// solo espacios
-        }
-	$datos=explode("+", $msg);
-	foreach($datos as $elemento){
-		list($name, $val)=explode(":",$elemento);
-		$info[$name]=$val;
-	}
-
-	$cmd=$info["cmd"];
-	switch($cmd) {
-		case "disconnect":
-            		socket_close($socket);
-			$this->log("$sock se desconecto amablemente");
-			break;
-		case "listaIsos": // checado!
-			$talkback=shell_exec(DIR."/lista-isos.sh");
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
-		case "infoHdd":	// checado!
-			$talkback=shell_exec(DIR."/info-hdd.sh ".$info["name"]);
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
-		case "crearHdd":  // checado!
-			$talkback=shell_exec(DIR."/crear-hdd.sh ".$info["name"]." ".$info["size"]);
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
-		case "borrarHdd":	// checado!
-			$talkback=shell_exec(DIR."/borrar-hdd.sh ".$info["name"]);
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
-		case "clonarHdd":
-			$talkback=shell_exec(DIR."/clonar-hdd.sh ".
-				$info["name"]." ". $info["new"]);
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
-
-		case "createVM":  // verificar creacion del script
-			$talkback=$this->createVM($info)." creada";
-	    		$this->log($talkback);
-        	        socket_write($socket, $talkback, strlen($talkback));
-			//echo "$talkback\n";
-			break;
-	}
-    }
     function createVM($info)
     {
 	$vncport=50+$info['vnc'];
 	$mac=$vncport;
+	$BRIDGE="OvsBrNETLAB";
 	$add=3; // adress pci
 
 	$crearnics="";
@@ -209,16 +153,17 @@ class MySocketServer
 		$intf="mv".$info["vnc"]."eth".$j;
 		$crearnics=$crearnics.
 			"ip tuntap add mode tap $intf\n".
-			"iplink set $intf up\n".
+			"ip link set $intf up\n".
 			"ovs-vsctl add-port $BRIDGE $intf tag=1\n\n";
 		$quitarnics=$quitarnics.
-			"ovsctl del-port brNETLAB $intf\n".
+			"ovs-vsctl del-port $BRIDGE $intf\n".
 			"ip link set $intf down\n".
 			"ip tuntap del mode tap $intf\n\n";
 	}
 
 
-	$vm=$crearnics."\n\n".
+	$vm="#!/bin/bash\n\n".
+		$crearnics."\n\n".
 		"qemu-system-x86_64 \\\n".
 		"-enable-kvm \\\n".
 		"-m {$info['mem']} \\\n".
@@ -263,20 +208,134 @@ class MySocketServer
 		$quitarnics;
 
 
-		$BASHSCRIPT="/home/sperez/maqvirt/machines/".$info["name"].".sh";
+		$BASHSCRIPT=DIRMV."/".$info["name"].".sh";
 		$F=fopen($BASHSCRIPT, 'x');
-		if($F)
+		if($F){
 			fwrite($F, $vm);
+			fclose($F);
+			chmod($BASHSCRIPT,0755);
+		}
 		else {
-			$BASHSCRIPT="Error al crear script de maq. virtual ".$info["name"].".sh";
+			$BASHSCRIPT="-1 Error al crear script de maq. virtual ".$info["name"].".sh";
 			$this->log($BASHSCRIPT);
 		}
-		fclose($F);
 		return $BASHSCRIPT;
     }
+
+    function processMessage($socket, $msg)
+    {
+        if (!$msg = trim($msg)) {
+            return;	// solo espacios
+        }
+	$datos=explode("+", $msg);
+	foreach($datos as $elemento){
+		list($name, $val)=explode(":",$elemento);
+		$info[$name]=$val;
+	}
+
+	$cmd=$info["cmd"];
+	switch($cmd) {
+		case "disconnect":
+            		socket_close($socket);
+			$this->log("$sock se desconecto amablemente");
+			break;
+		case "listaIsos": // checado!
+			$talkback=shell_exec(DIRBS."/lista-isos.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "infoHdd":	// checado!
+			$talkback=shell_exec(DIRBS."/info-hdd.sh ".$info["name"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "crearHdd":  // checado!
+			$talkback=shell_exec(DIRBS."/crear-hdd.sh ".$info["name"]." ".$info["size"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "borrarHdd":	// checado!
+			$talkback=shell_exec(DIRBS."/borrar-hdd.sh ".$info["name"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "clonarHdd":	// checado!
+			$talkback=shell_exec(DIRBS."/clonar-hdd.sh ".
+				$info["name"]." ". $info["new"]);
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+
+		case "createVM":  // checado
+			$talkback=$this->createVM($info)." creada";
+	    		$this->log($talkback);
+        	        socket_write($socket, $talkback, strlen($talkback));
+			//echo "$talkback\n";
+			break;
+		case "removeVM":  // checado!
+			$BASHSCRIPT=DIRMV."/".$info["name"].".sh";
+			$this->log("Borrando script de MV ".$BASHSCRIPT);
+			if(file_exists($BASHSCRIPT)){
+				if(unlink($BASHSCRIPT)) $BASHSCRIPT="MV Eliminada ".$BASHSCRIPT;
+				else $BASHSCRIPT="-1 No se pudo eliminar ".$BASHSCRIPT;
+			}
+			else {
+				$BASHSCRIPT="-1   !!! No existe MV ".$BASHSCRIPT;
+				$this->log($BASHSCRIPT);
+			}
+        	        socket_write($socket, $BASHSCRIPT, strlen($BASHSCRIPT));
+			echo $BASHSCRIPT."\n";
+			break;
+		case "listaVMs": // checado!
+			$talkback=shell_exec(DIRBS."/lista-vms.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "listaNegraVMs": // checado!
+			$talkback=shell_exec(DIRBS."/mv-lista-negra.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "vmsRunning": // checado! 
+			$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "vmIsRunning": // checado!
+			$talkback=shell_exec(DIRBS."/mv-isRunning.sh {$info['name']}");
+	                //$talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+		case "vmStart": // 
+			$mv=DIRMV."/{$info['name']}.sh"; 
+			exec(DIRBS."/mv-start.sh $mv >/dev/null 2>&1 &"); 
+			$talkback="se dejo la MV en el background\n";
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo $talkback;
+			break;
+		case "vmKill": //
+			$signal="SIGTERM";
+			if(isset($info["signal"])) 
+				$signal=$info["signal"];
+			$name=$info["name"];
+			$talkback=shell_exec(DIRBS."/mv-kill.sh $name $signal");
+	                //$talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
+	}
+    }
 }
-require("/home/sperez/maqvirt.secret");
-// define los parametros del constructor
+// define los parametros del constructor el archivo requerido al inicio
 (new MySocketServer(IP, PORT))->run();
 ?>
 
