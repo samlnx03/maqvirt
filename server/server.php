@@ -186,7 +186,7 @@ class MySocketServer
 	if(isset($info['nic'])){
 		for($i=1; $i<=$info["nic"]; $i++){
 			$intf="mv".$info["vnc"]."eth".$i;
-			$maci="52:54:00:43:".dechex($i).":".dechex($mac);
+			$maci=sprintf("52:54:00:43:%'02X:%'02X",$i, $mac);
 			$vm=$vm.
 		"-netdev tap,ifname=$intf,script=no,downscript=no,id=hostnet$i \\\n".
 		"-device virtio-net-pci,netdev=hostnet$i,mac=$maci,bus=pci.0,addr=0x$add \\\n";
@@ -303,12 +303,12 @@ class MySocketServer
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo "$talkback\n";
 			break;
-		//case "vmsRunning": // checado!  y ELIMINADO
-			//$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
-	                //$talkback=substr($talkback,0,-1); // quitar el cr
-        	        //socket_write($socket, $talkback, strlen($talkback));
-			//echo "$talkback\n";
-			//break;
+		case "vmsRunning": // checado!  
+			$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo "$talkback\n";
+			break;
 		case "vmIsRunning": // checado!
 			$talkback=shell_exec(DIRBS."/mv-isRunning.sh {$info['name']}");
 	                //$talkback=substr($talkback,0,-1); // quitar el cr
