@@ -19,17 +19,20 @@ if [[ "$NUM" == [1-9]* ]]; then
 	exit
 fi
 
+#echo "buscando pid de $NAME"
+
 PS=$(ps ax | grep qemu-system-x86_64 | grep "$NAME " | awk '{print $1}')
 if [ -z "$PS" ]; then
 	echo "-1 NO esta corriendo"
 	exit
 fi
-TFILE="$(mktemp)"
+#TFILE="$(mktemp)"
 	
-kill -s $SIGNAL $PS 2>$TFILE
+#kill -s $SIGNAL $PS 2>$TFILE
+kill -s $SIGNAL $PS 2>/dev/null
 #wait $PS  #wait: pid 17655 is not a child of this shell
 # verificar con isRunning
 
-cat $TFILE
-rm $TFILE
-
+#cat $TFILE
+#rm $TFILE
+echo "Se envio signal kill -s $SIGNAL"

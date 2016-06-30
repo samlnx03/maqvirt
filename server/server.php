@@ -334,8 +334,9 @@ class MySocketServer
 			$signal="SIGTERM";
 			if(isset($info["signal"])) 
 				$signal=$info["signal"];
-			$name=$info["name"];
-			$talkback=shell_exec(DIRBS."/mv-kill.sh $name $signal");
+			//$mv=DIRMV."/{$info['name']}.sh"; 
+			$mv=$info['name']; 
+			$talkback=shell_exec(DIRBS."/mv-kill.sh $mv $signal");
 	                //$talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo "$talkback\n";
