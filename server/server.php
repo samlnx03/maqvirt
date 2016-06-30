@@ -173,7 +173,7 @@ class MySocketServer
 		"-smp 1,sockets=1,cores=1,threads=1 \\\n";
 	if(isset($info['cdrom'])){
 		$vm=$vm.
-		"-cdrom /var/lib/libvirt/images/{$info['cdrom']} \\\n";
+		"-cdrom ".DIRISOS."/{$info['cdrom']} \\\n";
 	}
 	if(isset($info['hd0'])){
 		$vm=$vm.
@@ -319,6 +319,14 @@ class MySocketServer
 			$mv=DIRMV."/{$info['name']}.sh"; 
 			exec(DIRBS."/mv-start.sh $mv"); // daemonize vm
 			$talkback="se intento dejar la MV en el background. Cheque con isRunning en 1 segundo aprox\n";
+        	        socket_write($socket, $talkback, strlen($talkback));
+			echo $talkback;
+			break;
+		case "vmChangeCD":
+			//$newcdrom="/var/lib/libvirt/images/{$info['newcdrom']}";
+			$newcdrom=DIRISOS."/{$info['newcdrom']}";
+			$mv=DIRMV."/{$info['name']}.sh"; 
+			$talkback=exec(DIRBS."/mv-change-cd.sh $mv $newcdrom");
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo $talkback;
 			break;
