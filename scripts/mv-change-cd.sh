@@ -4,6 +4,8 @@
 
 NAME=$1
 NEWCD=$2
+#NAME="/home/sperez/maqvirt/machines/prueba.sh"
+#NEWCD="/var/lib/libvir/images/noexiste.iso"
 if [ -z "$NAME" ]; then
 	echo "-1 No se paso nombre de VM"
 	exit
@@ -13,6 +15,7 @@ if [ -z "$NEWCD" ]; then
 	exit
 fi
 
-sed -i 's/cdrom.*/cdrom $NEWCD \\/g' prueba.sh
+# se uso : en lugar de / porque la cadena NEWCD los contiene
+sed  -i "s:cdrom.*:cdrom ${NEWCD} \\\:g" $NAME
 echo "CD cambiado, restart requerido"
 

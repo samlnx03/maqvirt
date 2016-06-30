@@ -303,12 +303,12 @@ class MySocketServer
         	        socket_write($socket, $talkback, strlen($talkback));
 			echo "$talkback\n";
 			break;
-		case "vmsRunning": // checado! 
-			$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
-	                $talkback=substr($talkback,0,-1); // quitar el cr
-        	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
-			break;
+		//case "vmsRunning": // checado!  y ELIMINADO
+			//$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
+	                //$talkback=substr($talkback,0,-1); // quitar el cr
+        	        //socket_write($socket, $talkback, strlen($talkback));
+			//echo "$talkback\n";
+			//break;
 		case "vmIsRunning": // checado!
 			$talkback=shell_exec(DIRBS."/mv-isRunning.sh {$info['name']}");
 	                //$talkback=substr($talkback,0,-1); // quitar el cr
@@ -328,7 +328,7 @@ class MySocketServer
 			$mv=DIRMV."/{$info['name']}.sh"; 
 			$talkback=exec(DIRBS."/mv-change-cd.sh $mv $newcdrom");
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo $talkback;
+			echo $talkback."\n";
 			break;
 		case "vmKill": //
 			$signal="SIGTERM";
