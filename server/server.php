@@ -1,6 +1,10 @@
 #!/usr/bin/php
 <?php
-define("DEBUG", 1); // 0=nothing 1=minimum 2=all
+/* changelog
+	v0.1.20160629 	primer version de prueba
+	v0.1.1.21060630 ajuste en el log
+*/
+define("DEBUG", 0); // 0=nothing 1=minimum 2=all
 
 require("/home/sperez/maqvirt.secret");
 
@@ -21,7 +25,7 @@ class MySocketServer
         //listen to port
         socket_listen($socket);
         $this->socket = $socket;
-	if(DEBUG>0) $this->log("START ". $socket);
+	$this->log("START\n");
     }
    
     function __destruct()
@@ -30,18 +34,19 @@ class MySocketServer
             socket_close($client);
         }
         socket_close($this->socket);
+	$this->log("FINISH\n");
     }
    
     function run()
     {
         while(true) {
-		if(DEBUG==2) echo "run iniciando el while\n";
+		if(DEBUG==2) $this->log("run iniciando el while\n");
             $this->waitForChange();	// espera cambio en algun socket, 
 					// $this->socket, client0, client1
             $this->checkNewClients();	// take care of new clients
             $this->checkMessageRecieved(); //recibe mensajes posibles
             $this->checkDisconnect();
-		if(DEBUG==2) echo "run terminando el while\n\n";
+		if(DEBUG==2) $this->log("run terminando el while\n");
         }
     }
    
@@ -49,11 +54,10 @@ class MySocketServer
     function waitForChange()
     {
 	if(DEBUG==2){
-		echo "\twaitForChange entrando\n";
+		$this->log("\twaitForChange entrando\n");
 	}
         //reset changed, agrega el socket 
         $this->changed = array_merge([$this->socket], $this->clients);
-	if(DEBUG==2) { echo "\tarray changed= "; print_r($this->changed);}
         
 	//variable call time pass by reference req of socket_select
         $null = null;
@@ -64,47 +68,37 @@ class MySocketServer
 	//  ( array &$read , array &$write , array &$except , int $tv_sec [, int $tv_usec = 0 ] )
 	//  Si tv_sec es NULL (sin tiempo límite), socket_select() puede bloquear indefinidamente. 
 	// la matriz changed es cambiada al salir para reflejar que socket cambio.
-	if(DEBUG==2) echo "\twaitForChange terminando socket_select\n\n";
     }
    
     function checkNewClients()
     {
-	if(DEBUG==2) echo "\n\tcheckNewClients entrando\n";
+	if(DEBUG==2) $this->log("\n\tcheckNewClients entrando\n");
         if (!in_array($this->socket, $this->changed)) {
-	    if(DEBUG==2) echo "\tcheckNewClients no new clients, returning\n";
+	    if(DEBUG==2) $this->log("\tcheckNewClients no new clients, returning\n");
             return; //no new clients
         }
         $socket_new = socket_accept($this->socket); //accept new socket
         $this->clients[] = $socket_new;		// agregalo a los clientes actuales
+        socket_getpeername($socket_new, $ip);
         unset($this->changed[0]);	// quita this->socket del arreglo
-	if(DEBUG>0) $this->log("New Client, socket_new= $socket_new agregado");
-	/*
-	if(DEBUG) {echo "\tcheckNewClients array clients="; print_r($this->clients);
-		echo "\tcheckNewClients array changed="; print_r($this->changed); }
-	if(DEBUG) { echo "\tcheckNewClients, socket_new= ".$socket_new."\n\tdoing socket_read\n";}
-        $first_line = socket_read($socket_new, 1024);
-        $this->sendMessage('a new client has connected' . PHP_EOL);
-        $this->sendMessage('the new client says ' . trim($first_line) . PHP_EOL);
-	if(DEBUG) echo "\tcheckNewClients nuevo cliente se ha conectado y leido done!. message enviado\n";
-	*/
+	$this->log("New Client from $ip $socket_new\n");
     }
    
    
     function checkMessageRecieved()
     {
         foreach ($this->changed as $key => $socket) { // solo donde hay cambios
-	    if(DEBUG==2) {echo "\tcheckMessageReceived in foreach: $key $socket\n";} 
+	    if(DEBUG==2) {$this->log("\tcheckMessageReceived in foreach: $key $socket\n");} 
             $buffer = null;
             while(socket_recv($socket, $buffer, 1024, 0) >= 1) {
 		// recibe hasta 1024 bytes de información en buffer desde socket, 
-	    	if(DEBUG==2) {echo "\tinfo recibida en socket $socket en el while socket_recv\t";} 
-                //$this->sendMessage(">>>".trim($buffer) . PHP_EOL);
+	    	if(DEBUG==2) {$this->log("\tinfo recibida en socket $socket en el while socket_recv\t");} 
 		$this->processMessage($socket, trim($buffer));
-		if(DEBUG==2) echo "\tcheckMessageReceived message sent\n";
+		if(DEBUG==2) $this->log("\tcheckMessageReceived message proccesed\n");
                 unset($this->changed[$key]);
                 break;
             }
-	    if(DEBUG==2) {echo "\n\tcheckMessageReceived: while socket_recv done\n";} 
+	    if(DEBUG==2) {$this->log("\n\tcheckMessageReceived: while socket_recv done\n");} 
         }
     }
    
@@ -119,10 +113,9 @@ class MySocketServer
             // remove client for $clients array
             $found_socket = array_search($changed_socket, $this->clients);
             socket_getpeername($changed_socket, $ip);
+            $response = 'client ' . $ip . " $changed_socket se ha desconectado\n";
             unset($this->clients[$found_socket]);
-            $response = 'client ' . $ip . " $changed_socket has disconnected";
 	    $this->log($response);
-            //$this->sendMessage($response);
         }
     }
 
@@ -137,7 +130,12 @@ class MySocketServer
     }
     function log($msg){
 	$dt=new DateTime("now");
-        echo $dt->format("Y-m-d H:i")." $msg\n";
+        $msg=$dt->format("Y-m-d H:i")." $msg";
+	// log en el archivo de log
+	if(DEBUG>0) echo $msg;
+	$LOGFILE=fopen(LOGFILE,"a");
+	fwrite($LOGFILE, $msg);
+	fclose($LOGFILE);
     }
 
     function createVM($info)
@@ -148,6 +146,7 @@ class MySocketServer
 	$add=3; // adress pci
 
 	$crearnics="";
+	$quitarnics="";
 	for($i=1; $i<=$info["nic"]; $i++){
 		$j=$i-1;
 		$intf="mv".$info["vnc"]."eth".$j;
@@ -237,90 +236,89 @@ class MySocketServer
 	switch($cmd) {
 		case "disconnect":
             		socket_close($socket);
-			$this->log("$sock se desconecto amablemente");
+			$this->log("$sock se desconecto amablemente\n");
 			break;
 		case "listaIsos": // checado!
 			$talkback=shell_exec(DIRBS."/lista-isos.sh");
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket got listaIsos\n");
 			break;
 		case "infoHdd":	// checado!
 			$talkback=shell_exec(DIRBS."/info-hdd.sh ".$info["name"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket got infoHdd of {$info['name']}\n");
 			break;
 		case "crearHdd":  // checado!
 			$talkback=shell_exec(DIRBS."/crear-hdd.sh ".$info["name"]." ".$info["size"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket do crearHdd of {$info['name']} {$info['size']}\n");
 			break;
 		case "borrarHdd":	// checado!
 			$talkback=shell_exec(DIRBS."/borrar-hdd.sh ".$info["name"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket do borrarHdd of {$info['name']}\n");
 			break;
 		case "clonarHdd":	// checado!
 			$talkback=shell_exec(DIRBS."/clonar-hdd.sh ".
 				$info["name"]." ". $info["new"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket do clonarHdd of {$info['name']} as {$info['new']}\n");
 			break;
-
 		case "createVM":  // checado
 			$talkback=$this->createVM($info)." creada";
 	    		$this->log($talkback);
         	        socket_write($socket, $talkback, strlen($talkback));
 			//echo "$talkback\n";
+			$this->log("$socket do createVM {$info['name']}\n");
 			break;
 		case "removeVM":  // checado!
 			$BASHSCRIPT=DIRMV."/".$info["name"].".sh";
-			$this->log("Borrando script de MV ".$BASHSCRIPT);
+			$this->log("$socket Borrando script de MV ".$BASHSCRIPT."\n");
 			if(file_exists($BASHSCRIPT)){
 				if(unlink($BASHSCRIPT)) $BASHSCRIPT="MV Eliminada ".$BASHSCRIPT;
 				else $BASHSCRIPT="-1 No se pudo eliminar ".$BASHSCRIPT;
 			}
 			else {
 				$BASHSCRIPT="-1   !!! No existe MV ".$BASHSCRIPT;
-				$this->log($BASHSCRIPT);
 			}
         	        socket_write($socket, $BASHSCRIPT, strlen($BASHSCRIPT));
-			echo $BASHSCRIPT."\n";
+			$this->log("$socket $BASHSCRIPT\n");
 			break;
 		case "listaVMs": // checado!
 			$talkback=shell_exec(DIRBS."/lista-vms.sh");
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket got listaVMs\n");
 			break;
 		case "listaNegraVMs": // checado!
 			$talkback=shell_exec(DIRBS."/mv-lista-negra.sh");
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket got listaNegraVMs\n");
 			break;
 		case "vmsRunning": // checado!  
 			$talkback=shell_exec(DIRBS."/mvs-corriendo.sh");
 	                $talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket got vmsRunning\n");
 			break;
 		case "vmIsRunning": // checado!
 			$talkback=shell_exec(DIRBS."/mv-isRunning.sh {$info['name']}");
 	                //$talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket knew if {$info['name']} vmIsRunning\n");
 			break;
 		case "vmStart": // 
 			$mv=DIRMV."/{$info['name']}.sh"; 
 			exec(DIRBS."/mv-start.sh $mv"); // daemonize vm
 			$talkback="se intento dejar la MV en el background. Cheque con isRunning en 1 segundo aprox\n";
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo $talkback;
+			$this->log("$socket do vmStart of {$info['name']}\n");
 			break;
 		case "vmChangeCD":
 			//$newcdrom="/var/lib/libvirt/images/{$info['newcdrom']}";
@@ -328,7 +326,7 @@ class MySocketServer
 			$mv=DIRMV."/{$info['name']}.sh"; 
 			$talkback=exec(DIRBS."/mv-change-cd.sh $mv $newcdrom");
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo $talkback."\n";
+			$this->log("$socket change CD of {$info['name']} to {$info['newcdrom']}\n");
 			break;
 		case "vmKill": //
 			$signal="SIGTERM";
@@ -339,7 +337,8 @@ class MySocketServer
 			$talkback=shell_exec(DIRBS."/mv-kill.sh $mv $signal");
 	                //$talkback=substr($talkback,0,-1); // quitar el cr
         	        socket_write($socket, $talkback, strlen($talkback));
-			echo "$talkback\n";
+			$this->log("$socket change do vmKill to {$info['name']} with signal {$info['signal']}\n");
+			//echo "$talkback\n";
 			break;
 	}
     }
