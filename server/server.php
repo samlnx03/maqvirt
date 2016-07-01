@@ -6,7 +6,7 @@
 */
 define("DEBUG", 0); // 0=nothing 1=minimum 2=all
 
-require("/home/sperez/maqvirt.secret");
+require("/home/sperez/maqvirt/maqvirt.secret");
 
 class MySocketServer
 {
