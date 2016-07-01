@@ -13,6 +13,7 @@ class MySocketServer
     protected $socket;
     protected $clients = [];
     protected $changed;
+    protected $finish=false;  // bandera para terminar
    
     function __construct($host, $port)
     {
@@ -45,9 +46,12 @@ class MySocketServer
 					// $this->socket, client0, client1
             $this->checkNewClients();	// take care of new clients
             $this->checkMessageRecieved(); //recibe mensajes posibles
+	    if($this->finish)
+		break;
             $this->checkDisconnect();
 		if(DEBUG==2) $this->log("run terminando el while\n");
         }
+	return "STOPSOCKET";
     }
    
    
@@ -99,6 +103,7 @@ class MySocketServer
                 break;
             }
 	    if(DEBUG==2) {$this->log("\n\tcheckMessageReceived: while socket_recv done\n");} 
+	    if($this->finish) break;
         }
     }
    
@@ -119,6 +124,10 @@ class MySocketServer
         }
     }
 
+    function closeAll(){
+	foreach($this->clients as $socket)
+            socket_close($socket);
+    }
 
     function sendMessage($msg)
     {
@@ -234,9 +243,14 @@ class MySocketServer
 
 	$cmd=$info["cmd"];
 	switch($cmd) {
+		case "stopService":
+			$this->log("$socket DETIENE el servidor\n");
+			$this->closeAll(); // cierra todos los sockets y termina
+			$this->finish=true;
+			break;
 		case "disconnect":
+			$this->log("$socket se desconecto amablemente\n");
             		socket_close($socket);
-			$this->log("$sock se desconecto amablemente\n");
 			break;
 		case "listaIsos": // checado!
 			$talkback=shell_exec(DIRBS."/lista-isos.sh");
@@ -344,6 +358,9 @@ class MySocketServer
     }
 }
 // define los parametros del constructor el archivo requerido al inicio
-(new MySocketServer(IP, PORT))->run();
+$server=new MySocketServer(IP, PORT);
+$code=$server->run();
+echo $code;
+return $code;
 ?>
 
