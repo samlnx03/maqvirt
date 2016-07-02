@@ -258,6 +258,12 @@ class MySocketServer
         	        socket_write($socket, $talkback, strlen($talkback));
 			$this->log("$socket got listaIsos\n");
 			break;
+		case "listaHdds": // checado!
+			$talkback=shell_exec(DIRBS."/lista-hdds.sh");
+	                $talkback=substr($talkback,0,-1); // quitar el cr
+        	        socket_write($socket, $talkback, strlen($talkback));
+			$this->log("$socket got listaHdds\n");
+			break;
 		case "infoHdd":	// checado!
 			$talkback=shell_exec(DIRBS."/info-hdd.sh ".$info["name"]);
 	                $talkback=substr($talkback,0,-1); // quitar el cr
