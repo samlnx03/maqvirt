@@ -7,6 +7,8 @@ fi
 exec 2>/dev/null
 INFO=$(lvs fie_vg/$NAME | tail -n+2 | awk '{print $4,$3}') 
 if [ -z "$INFO" ]; then
+	# posible borrado manual
+	sed -i "/^$NAME$/d" /home/sperez/maqvirt/lista-hdds.txt
 	echo "-1 no se encontro el disco $NAME, exiting"
 	exit
 fi
