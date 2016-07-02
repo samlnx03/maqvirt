@@ -1,0 +1,13 @@
+# agregar una interfaz de red virtual
+# para que por ahi escuche el server vnc
+#
+ip tuntap add mode tap testtap0
+ip link set testtap0 up
+ovs-vsctl add-port OvsBrNETLAB testtap0 tag=1
+# poner la ip adecuada accesible por el proxy
+
+#quitar la interfaz virtal
+ovs-vsctl del-port OvsBrNETLAB testtap0
+ip link set testtap0 down
+ip tuntap del mode tap testtap0
+

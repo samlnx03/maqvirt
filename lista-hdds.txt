@@ -1,0 +1,3 @@
+#lista-hdds.txt
+borrame1
+borrame
