@@ -17,5 +17,5 @@ fi
 
 # se uso : en lugar de / porque la cadena NEWCD los contiene
 sed  -i "s:cdrom.*:cdrom ${NEWCD} \\\:g" $NAME
-echo "CD cambiado, restart requerido"
+echo "CD cambiado"
 
